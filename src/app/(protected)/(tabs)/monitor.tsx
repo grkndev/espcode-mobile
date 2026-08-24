@@ -1,9 +1,11 @@
 import Icons, { type IconName } from "@/components/Icons";
 import SafeAreaView from "@/components/SafeAreaView";
+import SelectBottomSheet from "@/components/SelectBottomSheet";
 import Text from "@/components/Text";
 import { Fonts } from "@/constants/theme";
+import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useRef, useState } from "react";
-import { FlatList, Modal, Pressable, TextInput, View } from "react-native";
+import { FlatList, Pressable, TextInput, View } from "react-native";
 import Svg, { Line, Path } from "react-native-svg";
 
 type Tab = "monitor" | "plotter";
@@ -26,6 +28,7 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
 const LINE_ENDINGS = ["LF", "CR", "CRLF", "None"];
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 74880, 115200, 230400];
+const BAUD_OPTIONS = BAUD_RATES.map((rate) => ({ value: String(rate), label: String(rate) }));
 
 const INITIAL_LOGS: LogLine[] = [
   {
@@ -70,11 +73,11 @@ export default function MonitorScreen() {
   const [tab, setTab] = useState<Tab>("monitor");
   const [connected, setConnected] = useState(false);
   const [baudRate, setBaudRate] = useState(115200);
-  const [baudModalVisible, setBaudModalVisible] = useState(false);
   const [lineEnding, setLineEnding] = useState(0);
   const [command, setCommand] = useState("");
   const [logs, setLogs] = useState<LogLine[]>(INITIAL_LOGS);
   const listRef = useRef<FlatList<LogLine>>(null);
+  const baudSheetRef = useRef<BottomSheetModal>(null);
 
   const handleSend = () => {
     const text = command.trim();
@@ -109,7 +112,7 @@ export default function MonitorScreen() {
           </View>
           <View className="flex-row items-center gap-2">
             <Pressable
-              onPress={() => setBaudModalVisible(true)}
+              onPress={() => baudSheetRef.current?.present()}
               className="flex-row items-center gap-1 rounded-xl bg-element px-3 py-2"
             >
               <Text weight="semibold" className="text-primary text-sm">
@@ -208,11 +211,15 @@ export default function MonitorScreen() {
         </View>
       )}
 
-      <BaudRateModal
-        visible={baudModalVisible}
-        value={baudRate}
-        onSelect={setBaudRate}
-        onClose={() => setBaudModalVisible(false)}
+      <SelectBottomSheet
+        ref={baudSheetRef}
+        title="Baud Rate"
+        options={BAUD_OPTIONS}
+        value={String(baudRate)}
+        onSelect={(v) => {
+          setBaudRate(Number(v));
+          baudSheetRef.current?.dismiss();
+        }}
       />
     </SafeAreaView>
   );
@@ -359,65 +366,5 @@ function EmptyState({
       </Text>
       <Text className="text-center text-sm text-secondary">{subtitle}</Text>
     </View>
-  );
-}
-
-function BaudRateModal({
-  visible,
-  value,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  value: number;
-  onSelect: (rate: number) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Pressable
-        className="flex-1 items-center justify-center bg-black/60 px-10"
-        onPress={onClose}
-      >
-        <Pressable
-          className="w-full rounded-2xl border border-[#2A3239] bg-[#12181D] p-2"
-          onPress={(e) => e.stopPropagation()}
-        >
-          <Text weight="bold" className="px-3 pb-3 pt-2 text-primary">
-            Baud Rate
-          </Text>
-          {BAUD_RATES.map((rate) => {
-            const selected = rate === value;
-            return (
-              <Pressable
-                key={rate}
-                onPress={() => {
-                  onSelect(rate);
-                  onClose();
-                }}
-                className={`flex-row items-center justify-between rounded-xl px-3 py-3 ${
-                  selected ? "bg-purple-700/15" : ""
-                }`}
-              >
-                <Text
-                  weight={selected ? "semibold" : "regular"}
-                  className={selected ? "text-purple-400" : "text-primary"}
-                >
-                  {rate}
-                </Text>
-                {selected && (
-                  <Icons name="IconCheck" color="#a855f7" size={18} />
-                )}
-              </Pressable>
-            );
-          })}
-        </Pressable>
-      </Pressable>
-    </Modal>
   );
 }
