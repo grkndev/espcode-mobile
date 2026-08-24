@@ -33,11 +33,11 @@ export default function HomeScreen() {
       </View>
       <View className="gap-4 flex-1">
         <Text weight="bold" className="text-primary text-3xl">
-          Projelerim
+          My Projects
         </Text>
         <TouchableOpacity className="bg-[#151A26] flex-row items-center gap-2 rounded-full p-4 border border-[#2A3239]">
           <Icons name="IconSearch" color={"#71717a"} size={18} />
-          <Text className="text-zinc-500">Projelerde ara.</Text>
+          <Text className="text-zinc-500">Search projects...</Text>
         </TouchableOpacity>
         <FlatList
           data={[1, 1, 1]}
@@ -47,7 +47,7 @@ export default function HomeScreen() {
             <TouchableOpacity className="border border-zinc-800 border-dashed rounded-xl p-4 justify-center items-center flex-row gap-2">
               <Icons name="IconPlus" color={"#ffffff"} size={14} />
               <Text className="text-white text-sm" weight="bold">
-                Yeni Proje
+                Create a project
               </Text>
             </TouchableOpacity>
           }
@@ -81,13 +81,13 @@ function ProjectCard() {
       <View className="h-px bg-zinc-800" />
       <View className="flex flex-row items-center justify-between">
         <View className="flex flex-row gap-2 ">
-          <Text className="text-zinc-600 text-sm">12 sürüm</Text>
+          <Text className="text-zinc-600 text-sm">12 versions</Text>
           <Text className="text-zinc-600 text-sm">·</Text>
-          <Text className="text-zinc-600 text-sm">4 sa önce</Text>
+          <Text className="text-zinc-600 text-sm">4h ago</Text>
         </View>
         <View className="flex flex-row items-center">
           <Text className="text-purple-600 text-sm" weight="bold">
-            Aç
+            Open
           </Text>
           <Icons name="IconChevronRight" color={"#9333ea"} size={16} />
         </View>
