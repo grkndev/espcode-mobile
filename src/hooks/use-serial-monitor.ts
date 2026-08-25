@@ -1,6 +1,6 @@
 import { useDeviceConnection } from "@/hooks/use-device-connection";
 import type { LogLevel, LogLine } from "@/hooks/use-run-session";
-import { useFocusEffect } from "expo-router";
+import { useFocusEffect, useIsFocused } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type LineEnding = "LF" | "CR" | "CRLF" | "None";
@@ -31,6 +31,7 @@ export function useSerialMonitor() {
   const wasConnectedRef = useRef(false);
   const modeRef = useRef(mode);
   modeRef.current = mode;
+  const isFocused = useIsFocused();
 
   const appendLine = useCallback((level: LogLevel, text: string) => {
     setLogs((prev) => [...prev, { id: `${prev.length}-${level}`, time: timestamp(), level, text }]);
@@ -51,6 +52,20 @@ export function useSerialMonitor() {
       return () => setMode("idle");
     }, [setMode]),
   );
+
+  // Belt-and-suspenders on top of the focus effect above: `mode` can also
+  // get reset out from under an already-focused Monitor by code that has
+  // nothing to do with navigation - e.g. the provider resets it to "idle"
+  // on a USB detach event, and a physical RST press on a native-USB board
+  // causes exactly that (a momentary detach/reattach) without ever
+  // unfocusing this screen, so the focus effect never re-fires to reclaim
+  // it. Re-assert ownership on every reconnect while this screen is the
+  // one actually being looked at, not just on the initial focus.
+  useEffect(() => {
+    if (isFocused && connectionState === "connected") {
+      setMode("monitor");
+    }
+  }, [isFocused, connectionState, setMode]);
 
   // A second consumer (esptool) can share this same raw byte stream while
   // Monitor stays mounted in the background (tab navigators don't unmount
