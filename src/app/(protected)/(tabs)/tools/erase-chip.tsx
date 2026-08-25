@@ -1,45 +1,18 @@
 import Icons from "@/components/Icons";
-import ProgressBar from "@/components/ProgressBar";
 import Text from "@/components/Text";
 import ToolScreenModal from "@/components/ToolScreenModal";
 import { Fonts } from "@/constants/theme";
-import { useEffect, useRef, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { useEraseChip } from "@/hooks/use-erase-chip";
+import { useState } from "react";
+import { ActivityIndicator, Pressable, TextInput, View } from "react-native";
 
 const CONFIRM_WORD = "ERASE";
 
-type Status = "idle" | "erasing" | "done";
-
 function EraseChipBody() {
+  const { status, error, elapsedSeconds, erase, reset } = useEraseChip();
   const [confirmText, setConfirmText] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
-  const [progress, setProgress] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
 
   const canConfirm = confirmText.trim().toUpperCase() === CONFIRM_WORD;
-
-  const startErase = () => {
-    if (!canConfirm) return;
-    setStatus("erasing");
-    setProgress(0);
-    intervalRef.current = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + Math.random() * 10 + 5;
-        if (next >= 100) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setStatus("done");
-          return 100;
-        }
-        return next;
-      });
-    }, 220);
-  };
 
   if (status === "erasing") {
     return (
@@ -53,18 +26,18 @@ function EraseChipBody() {
             Do not disconnect the device
           </Text>
         </View>
-        <ProgressBar progress={progress} color="#dc2626" />
+        <ActivityIndicator size="large" color="#dc2626" />
         <Text
           style={{ fontFamily: Fonts?.mono }}
           className="text-center text-[13px] text-zinc-500"
         >
-          Erasing flash... ({Math.round(progress)}%)
+          Erasing flash... {elapsedSeconds}s elapsed (can take up to 2 minutes)
         </Text>
       </View>
     );
   }
 
-  if (status === "done") {
+  if (status === "success") {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-10">
         <View className="h-16 w-16 items-center justify-center rounded-full bg-emerald-950/60">
@@ -76,6 +49,31 @@ function EraseChipBody() {
         <Text className="text-center text-sm text-secondary">
           All data has been permanently removed from flash memory.
         </Text>
+      </View>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <View className="flex-1 items-center justify-center gap-3 px-10">
+        <View className="h-16 w-16 items-center justify-center rounded-full bg-red-950/60">
+          <Icons name="IconAlertTriangleFilled" color="#f87171" size={28} />
+        </View>
+        <Text weight="bold" className="text-center text-lg text-primary">
+          Erase failed
+        </Text>
+        <Text className="text-center text-sm text-secondary">{error}</Text>
+        <Pressable
+          onPress={() => {
+            reset();
+            setConfirmText("");
+          }}
+          className="mt-4 rounded-xl bg-element px-6 py-3"
+        >
+          <Text weight="bold" className="text-primary">
+            Try Again
+          </Text>
+        </Pressable>
       </View>
     );
   }
@@ -118,7 +116,7 @@ function EraseChipBody() {
       <View className="flex-1" />
 
       <Pressable
-        onPress={startErase}
+        onPress={erase}
         disabled={!canConfirm}
         className={`mb-4 items-center rounded-xl py-3.5 ${canConfirm ? "bg-red-600" : "bg-element"}`}
       >
