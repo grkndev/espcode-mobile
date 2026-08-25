@@ -4,8 +4,10 @@ import SelectBottomSheet from "@/components/SelectBottomSheet";
 import Text from "@/components/Text";
 import ToolScreenModal from "@/components/ToolScreenModal";
 import { Fonts } from "@/constants/theme";
+import { useDeviceConnection } from "@/hooks/use-device-connection";
+import { useFirmwareUpload } from "@/hooks/use-firmware-upload";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 
 const OFFSETS = [
@@ -14,48 +16,21 @@ const OFFSETS = [
   { value: "0x10000", label: "0x10000 · Application" },
 ];
 
-const MOCK_FILE = { name: "firmware-v1.2.0.bin", size: "1.4 MB" };
-
-type Status = "idle" | "uploading" | "done";
+function formatFileSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+}
 
 function UploadFirmwareBody() {
-  const [file, setFile] = useState<typeof MOCK_FILE | null>(null);
+  const { connectionState, selectedDevice } = useDeviceConnection();
+  const { file, status, progress, error, pickFile, upload, reset } = useFirmwareUpload();
   const [offset, setOffset] = useState(OFFSETS[2].value);
-  const [status, setStatus] = useState<Status>("idle");
-  const [progress, setProgress] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const offsetSheetRef = useRef<BottomSheetModal>(null);
 
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+  const connected = connectionState === "connected";
 
-  const startUpload = () => {
-    if (!file) return;
-    setStatus("uploading");
-    setProgress(0);
-    intervalRef.current = setInterval(() => {
-      setProgress((prev) => {
-        const next = prev + Math.random() * 12 + 4;
-        if (next >= 100) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setStatus("done");
-          return 100;
-        }
-        return next;
-      });
-    }, 200);
-  };
-
-  const reset = () => {
-    setStatus("idle");
-    setProgress(0);
-    setFile(null);
-  };
-
-  if (status === "uploading") {
+  if (status === "uploading" || status === "verifying") {
     return (
       <View className="flex-1 justify-center gap-6 px-6">
         <View className="items-center gap-2">
@@ -65,24 +40,22 @@ function UploadFirmwareBody() {
           <Text className="text-sm text-secondary">{file?.name}</Text>
         </View>
         <View className="gap-2">
-          <ProgressBar progress={progress} />
+          <ProgressBar progress={status === "verifying" ? 100 : progress} />
           <Text className="text-right text-xs text-secondary">
-            {Math.round(progress)}%
+            {status === "verifying" ? "100%" : `${progress}%`}
           </Text>
         </View>
         <Text
           style={{ fontFamily: Fonts?.mono }}
           className="text-center text-[13px] text-zinc-500"
         >
-          {progress < 90
-            ? `Writing at ${offset}... (${Math.round(progress)}%)`
-            : "Verifying..."}
+          {status === "verifying" ? "Verifying..." : `Writing at ${offset}... (${progress}%)`}
         </Text>
       </View>
     );
   }
 
-  if (status === "done") {
+  if (status === "success") {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-10">
         <View className="h-16 w-16 items-center justify-center rounded-full bg-emerald-950/60">
@@ -92,7 +65,7 @@ function UploadFirmwareBody() {
           Upload complete
         </Text>
         <Text className="text-center text-sm text-secondary">
-          {file?.name} was flashed successfully.
+          {file?.name} was flashed and verified successfully.
         </Text>
         <Pressable
           onPress={reset}
@@ -106,15 +79,43 @@ function UploadFirmwareBody() {
     );
   }
 
+  if (status === "error") {
+    return (
+      <View className="flex-1 items-center justify-center gap-3 px-10">
+        <View className="h-16 w-16 items-center justify-center rounded-full bg-red-950/60">
+          <Icons name="IconAlertTriangleFilled" color="#f87171" size={28} />
+        </View>
+        <Text weight="bold" className="text-center text-lg text-primary">
+          Upload failed
+        </Text>
+        <Text className="text-center text-sm text-secondary">{error}</Text>
+        <Pressable
+          onPress={reset}
+          className="mt-4 rounded-xl bg-element px-6 py-3"
+        >
+          <Text weight="bold" className="text-primary">
+            Try Again
+          </Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 gap-4 px-4 pt-4">
       <View className="flex-row items-center gap-2">
-        <View className="h-[7px] w-[7px] rounded-full bg-emerald-500" />
-        <Text className="text-xs text-zinc-500">ESP32-S3 connected</Text>
+        <View className={`h-[7px] w-[7px] rounded-full ${connected ? "bg-emerald-500" : "bg-zinc-700"}`} />
+        <Text className="text-xs text-zinc-500">
+          {connected ? `${selectedDevice?.driverType ?? "Device"} connected` : "Device not connected"}
+        </Text>
       </View>
 
+      {error && (
+        <Text className="text-xs text-red-400">{error}</Text>
+      )}
+
       <Pressable
-        onPress={() => setFile(MOCK_FILE)}
+        onPress={pickFile}
         className={`items-center justify-center gap-2 rounded-xl border p-6 ${
           file
             ? "border-[#2A3239] bg-[#12181D]"
@@ -127,7 +128,7 @@ function UploadFirmwareBody() {
             <Text weight="bold" className="text-primary">
               {file.name}
             </Text>
-            <Text className="text-xs text-secondary">{file.size}</Text>
+            <Text className="text-xs text-secondary">{formatFileSize(file.bytes.length)}</Text>
             <Text weight="semibold" className="mt-1 text-xs text-purple-400">
               Change file
             </Text>
@@ -161,7 +162,7 @@ function UploadFirmwareBody() {
       <View className="flex-1" />
 
       <Pressable
-        onPress={startUpload}
+        onPress={() => upload(Number(offset))}
         disabled={!file}
         className={`mb-4 items-center rounded-xl py-3.5 ${file ? "bg-purple-700" : "bg-element"}`}
       >
