@@ -70,7 +70,13 @@ export default function HomeScreen() {
 
 function ProjectCard({ projectId }: { projectId: string }) {
   return (
-    <Link href={{ pathname: "/(protected)/(screens)/editor", params: { project: projectId } }} asChild>
+    <Link
+      href={{
+        pathname: "/(protected)/(screens)/editor",
+        params: { project: projectId },
+      }}
+      asChild
+    >
       <TouchableOpacity className="bg-[#12181D] border border-[#2A3239] p-4 rounded-xl gap-2">
         <View className="flex flex-row items-center justify-between">
           <Text className="text-zinc-600 text-sm">PRJ-001</Text>
