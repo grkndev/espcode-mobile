@@ -6,14 +6,13 @@ export type ConnectionState = "disconnected" | "connecting" | "connected" | "err
 export type ConnectionMode = "idle" | "monitor" | "esptool";
 
 export type DeviceConnectionContextValue = {
-  devices: UsbDeviceInfo[];
   selectedDevice: UsbDeviceInfo | null;
   connectionState: ConnectionState;
   connectionError: string | null;
   baudRate: number;
   mode: ConnectionMode;
-  scanDevices: () => Promise<UsbDeviceInfo[]>;
-  selectAndConnect: (deviceId: number, baudRate: number) => Promise<void>;
+  /** Scans, auto-selects the first USB-serial device found, requests permission, and opens it. */
+  connect: (baudRate: number) => Promise<void>;
   disconnect: () => void;
   setBaudRate: (rate: number) => void;
   setMode: (mode: ConnectionMode) => void;
@@ -26,7 +25,6 @@ export const DeviceConnectionContext = createContext<DeviceConnectionContextValu
 const DEFAULT_BAUD_RATE = 115200;
 
 export function DeviceConnectionProvider({ children }: { children: ReactNode }) {
-  const [devices, setDevices] = useState<UsbDeviceInfo[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<UsbDeviceInfo | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>("disconnected");
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -52,34 +50,37 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
     };
   }, []);
 
-  const scanDevices = useCallback(async () => {
-    const found = await EspSerial.listDevices();
-    setDevices(found);
-    return found;
-  }, []);
-
-  const selectAndConnect = useCallback(
-    async (deviceId: number, baud: number) => {
-      setConnectionState("connecting");
-      setConnectionError(null);
-      try {
-        const granted = await EspSerial.requestPermission(deviceId);
-        if (!granted) {
-          setConnectionState("error");
-          setConnectionError("Permission denied");
-          return;
-        }
-        await EspSerial.open(deviceId, baud);
-        setSelectedDevice(devices.find((d) => d.id === deviceId) ?? null);
-        setBaudRateState(baud);
-        setConnectionState("connected");
-      } catch (e) {
+  // No device-picker UI: the board connects directly over one USB-C cable, so
+  // the only device found (if any) is the one the user means. A picker only
+  // matters for a multi-device/hub setup, which isn't this app's real usage
+  // today - revisit with a non-modal picker (e.g. its own screen) if that
+  // ever changes, rather than a BottomSheetModal in this hot connect path.
+  const connect = useCallback(async (baud: number) => {
+    setConnectionState("connecting");
+    setConnectionError(null);
+    try {
+      const found = await EspSerial.listDevices();
+      const target = found[0];
+      if (!target) {
         setConnectionState("error");
-        setConnectionError(e instanceof Error ? e.message : String(e));
+        setConnectionError("No device found");
+        return;
       }
-    },
-    [devices],
-  );
+      const granted = await EspSerial.requestPermission(target.id);
+      if (!granted) {
+        setConnectionState("error");
+        setConnectionError("Permission denied");
+        return;
+      }
+      await EspSerial.open(target.id, baud);
+      setSelectedDevice(target);
+      setBaudRateState(baud);
+      setConnectionState("connected");
+    } catch (e) {
+      setConnectionState("error");
+      setConnectionError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
 
   const disconnect = useCallback(() => {
     EspSerial.close().catch(() => {});
@@ -118,14 +119,12 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
 
   const value = useMemo<DeviceConnectionContextValue>(
     () => ({
-      devices,
       selectedDevice,
       connectionState,
       connectionError,
       baudRate,
       mode,
-      scanDevices,
-      selectAndConnect,
+      connect,
       disconnect,
       setBaudRate,
       setMode,
@@ -133,14 +132,12 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
       subscribeRaw,
     }),
     [
-      devices,
       selectedDevice,
       connectionState,
       connectionError,
       baudRate,
       mode,
-      scanDevices,
-      selectAndConnect,
+      connect,
       disconnect,
       setBaudRate,
       setMode,

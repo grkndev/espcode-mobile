@@ -1,4 +1,3 @@
-import DeviceSelectSheet from "@/components/DeviceSelectSheet";
 import Icons, { type IconName } from "@/components/Icons";
 import SafeAreaView from "@/components/SafeAreaView";
 import SelectBottomSheet from "@/components/SelectBottomSheet";
@@ -44,34 +43,25 @@ export default function MonitorScreen() {
     connectionError,
     baudRate,
     setBaudRate,
+    connect,
     disconnect,
-    scanDevices,
   } = useDeviceConnection();
   const { logs, send, clearLogs } = useSerialMonitor();
   const [lineEndingIndex, setLineEndingIndex] = useState(0);
   const [command, setCommand] = useState("");
   const listRef = useRef<FlatList<LogLine>>(null);
   const baudSheetRef = useRef<BottomSheetModal>(null);
-  const deviceSheetRef = useRef<BottomSheetModal>(null);
 
   const connected = connectionState === "connected";
   const connecting = connectionState === "connecting";
 
-  // Scan before presenting, not on the sheet's own mount: with
-  // enableDynamicSizing, the sheet measures its content height right as it
-  // mounts. Populating the device list mid-measurement (previously done via
-  // onChange inside the sheet) changes that height while the mount animation
-  // is still settling, which can wedge @gorhom/bottom-sheet so later
-  // .present() calls silently no-op. Scanning first means the sheet mounts
-  // with a stable, already-known device list.
-  const handleStartPress = async () => {
+  const handleStartPress = () => {
     Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm);
     if (connected) {
       disconnect();
       return;
     }
-    await scanDevices().catch(() => {});
-    deviceSheetRef.current?.present();
+    connect(baudRate);
   };
 
   const handleSend = () => {
@@ -219,12 +209,6 @@ export default function MonitorScreen() {
           setBaudRate(Number(v));
           baudSheetRef.current?.dismiss();
         }}
-      />
-
-      <DeviceSelectSheet
-        ref={deviceSheetRef}
-        baudRate={baudRate}
-        onDismiss={() => deviceSheetRef.current?.dismiss()}
       />
     </SafeAreaView>
   );

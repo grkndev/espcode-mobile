@@ -6,6 +6,20 @@ Scope of this document: full roadmap (Phase 0–7) + detailed design for
 live)**. Later phases are sketched as a roadmap only and will get their own
 design pass when their turn comes.
 
+**2026-08-25 update — `DeviceSelectSheet` removed.** The Phase 1 section
+below originally routed Start through a `BottomSheetModal` device picker.
+On real hardware, that sheet's `.present()` started silently no-opping
+after a connect/disconnect cycle — confirmed to be the sheet itself (touch
+handling and every other control kept working) and not fixed by two
+targeted attempts (decoupling the scan from its mount, and dismissing
+before the async connect). Since this app's actual usage is one board over
+one USB-C cable, there was never a real need to pick among devices, so the
+picker was removed rather than debugged further: `DeviceConnectionProvider`
+now exposes a single `connect(baudRate)` that scans, auto-selects the only
+device found, requests permission, and opens it — no sheet in the loop.
+The rest of this section is kept as-is for the reasoning trail; treat any
+mention of `DeviceSelectSheet` as superseded by `connect()`.
+
 ## Purpose
 
 The app is fully built as UI with mock/local-state data (Monitor, Tools
