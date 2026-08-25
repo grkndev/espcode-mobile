@@ -1,6 +1,7 @@
 import Icons, { type IconName } from "@/components/Icons";
 import SafeAreaView from "@/components/SafeAreaView";
 import Text from "@/components/Text";
+import { useDeviceConnection } from "@/hooks/use-device-connection";
 import { useRouter, type Href } from "expo-router";
 import { Pressable, View } from "react-native";
 
@@ -47,6 +48,8 @@ const DANGER_TOOL: Tool = {
 
 export default function ToolsScreen() {
   const router = useRouter();
+  const { connectionState, selectedDevice } = useDeviceConnection();
+  const connected = connectionState === "connected";
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -60,8 +63,10 @@ export default function ToolsScreen() {
       </View>
 
       <View className="mt-4 flex-row items-center gap-2 px-4">
-        <View className="h-[7px] w-[7px] rounded-full bg-zinc-700" />
-        <Text className="text-xs text-zinc-500">Device not connected</Text>
+        <View className={`h-[7px] w-[7px] rounded-full ${connected ? "bg-emerald-500" : "bg-zinc-700"}`} />
+        <Text className="text-xs text-zinc-500">
+          {connected ? `Connected — ${selectedDevice?.driverType ?? "device"}` : "Device not connected"}
+        </Text>
       </View>
 
       <View className="mt-4 gap-2 px-4">

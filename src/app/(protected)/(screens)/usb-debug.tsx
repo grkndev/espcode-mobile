@@ -1,9 +1,9 @@
 import SafeAreaView from "@/components/SafeAreaView";
 import Text from "@/components/Text";
+import * as EspSerial from "@/modules/esp-serial";
+import type { UsbDeviceInfo } from "@/modules/esp-serial";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import * as EspSerial from "../../../../modules/esp-serial";
-import type { UsbDeviceInfo } from "../../../../modules/esp-serial";
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)

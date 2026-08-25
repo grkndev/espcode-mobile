@@ -1,22 +1,18 @@
+import DeviceSelectSheet from "@/components/DeviceSelectSheet";
 import Icons, { type IconName } from "@/components/Icons";
 import SafeAreaView from "@/components/SafeAreaView";
 import SelectBottomSheet from "@/components/SelectBottomSheet";
 import Text from "@/components/Text";
 import { Fonts } from "@/constants/theme";
+import { useDeviceConnection } from "@/hooks/use-device-connection";
+import type { LogLevel, LogLine } from "@/hooks/use-run-session";
+import { useSerialMonitor, type LineEnding } from "@/hooks/use-serial-monitor";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { useRef, useState } from "react";
-import { FlatList, Pressable, TextInput, View } from "react-native";
+import { ActivityIndicator, FlatList, Pressable, TextInput, View } from "react-native";
 import Svg, { Line, Path } from "react-native-svg";
 
 type Tab = "monitor" | "plotter";
-type LogLevel = "info" | "warn" | "error" | "system";
-
-type LogLine = {
-  id: string;
-  time: string;
-  level: LogLevel;
-  text: string;
-};
 
 const LEVEL_COLOR: Record<LogLevel, string> = {
   info: "text-zinc-200",
@@ -25,72 +21,35 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
   system: "text-purple-400",
 };
 
-const LINE_ENDINGS = ["LF", "CR", "CRLF", "None"];
+const LINE_ENDINGS: LineEnding[] = ["LF", "CR", "CRLF", "None"];
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 74880, 115200, 230400];
 const BAUD_OPTIONS = BAUD_RATES.map((rate) => ({ value: String(rate), label: String(rate) }));
 
-const INITIAL_LOGS: LogLine[] = [
-  {
-    id: "1",
-    time: "13:42:01.221",
-    level: "info",
-    text: "Temp: 24.6C  Hum: 41%",
-  },
-  {
-    id: "2",
-    time: "13:42:01.724",
-    level: "info",
-    text: "Temp: 24.7C  Hum: 41%",
-  },
-  {
-    id: "3",
-    time: "13:42:02.221",
-    level: "info",
-    text: "Temp: 24.7C  Hum: 40%",
-  },
-  {
-    id: "4",
-    time: "13:42:02.723",
-    level: "info",
-    text: "Temp: 24.8C  Hum: 40%",
-  },
-  {
-    id: "5",
-    time: "13:42:03.221",
-    level: "info",
-    text: "Temp: 24.8C  Hum: 41%",
-  },
-  {
-    id: "6",
-    time: "13:42:03.724",
-    level: "info",
-    text: "Temp: 24.9C  Hum: 41%",
-  },
-];
-
 export default function MonitorScreen() {
   const [tab, setTab] = useState<Tab>("monitor");
-  const [connected, setConnected] = useState(false);
-  const [baudRate, setBaudRate] = useState(115200);
-  const [lineEnding, setLineEnding] = useState(0);
+  const { connectionState, connectionError, baudRate, setBaudRate, disconnect } = useDeviceConnection();
+  const { logs, send, clearLogs } = useSerialMonitor();
+  const [lineEndingIndex, setLineEndingIndex] = useState(0);
   const [command, setCommand] = useState("");
-  const [logs, setLogs] = useState<LogLine[]>(INITIAL_LOGS);
   const listRef = useRef<FlatList<LogLine>>(null);
   const baudSheetRef = useRef<BottomSheetModal>(null);
+  const deviceSheetRef = useRef<BottomSheetModal>(null);
+
+  const connected = connectionState === "connected";
+  const connecting = connectionState === "connecting";
+
+  const handleStartPress = () => {
+    if (connected) {
+      disconnect();
+      return;
+    }
+    deviceSheetRef.current?.present();
+  };
 
   const handleSend = () => {
-    const text = command.trim();
-    if (!text || !connected) return;
-    setLogs((prev) => [
-      ...prev,
-      {
-        id: `cmd-${prev.length}-${text.length}`,
-        time: `${new Date().toLocaleTimeString("en-GB", { hour12: false })}.000`,
-        level: "system",
-        text: `> ${text}`,
-      },
-    ]);
+    if (!command.trim() || !connected) return;
+    send(command, LINE_ENDINGS[lineEndingIndex]);
     setCommand("");
   };
 
@@ -121,11 +80,13 @@ export default function MonitorScreen() {
               <Icons name="IconChevronDown" color="#B0B4BA" size={16} />
             </Pressable>
             <Pressable
-              onPress={() => setConnected((v) => !v)}
-              className="rounded-xl bg-purple-700 px-5 py-2"
+              onPress={handleStartPress}
+              disabled={connecting}
+              className={`flex-row items-center gap-2 rounded-xl px-5 py-2 ${connecting ? "bg-element" : "bg-purple-700"}`}
             >
-              <Text weight="bold" className="text-white text-sm">
-                {connected ? "Pause" : "Start"}
+              {connecting && <ActivityIndicator size="small" color="#B0B4BA" />}
+              <Text weight="bold" className={connecting ? "text-zinc-500" : "text-white"}>
+                {connecting ? "Connecting..." : connected ? "Pause" : "Start"}
               </Text>
             </Pressable>
           </View>
@@ -151,12 +112,12 @@ export default function MonitorScreen() {
             />
             <Pressable
               onPress={() =>
-                setLineEnding((i) => (i + 1) % LINE_ENDINGS.length)
+                setLineEndingIndex((i) => (i + 1) % LINE_ENDINGS.length)
               }
               className="rounded-lg bg-element px-3 py-2"
             >
               <Text className="text-xs text-secondary">
-                {LINE_ENDINGS[lineEnding]}
+                {LINE_ENDINGS[lineEndingIndex]}
               </Text>
             </Pressable>
             <Pressable
@@ -171,7 +132,7 @@ export default function MonitorScreen() {
               />
             </Pressable>
             <Pressable
-              onPress={() => setLogs([])}
+              onPress={clearLogs}
               disabled={logs.length === 0}
               className="rounded-lg p-2"
             >
@@ -188,9 +149,13 @@ export default function MonitorScreen() {
               <ConsoleView logs={logs} listRef={listRef} />
             ) : (
               <EmptyState
-                icon="IconPlugConnectedX"
-                title="Not Connected yet"
-                subtitle="Press the Start button to view the logs"
+                icon={connectionError ? "IconAlertTriangleFilled" : "IconPlugConnectedX"}
+                title={connectionError ?? "Not Connected yet"}
+                subtitle={
+                  connectionError
+                    ? "Tap Start to try again."
+                    : "Press the Start button to view the logs"
+                }
               />
             )}
           </View>
@@ -220,6 +185,12 @@ export default function MonitorScreen() {
           setBaudRate(Number(v));
           baudSheetRef.current?.dismiss();
         }}
+      />
+
+      <DeviceSelectSheet
+        ref={deviceSheetRef}
+        baudRate={baudRate}
+        onDismiss={() => deviceSheetRef.current?.dismiss()}
       />
     </SafeAreaView>
   );
