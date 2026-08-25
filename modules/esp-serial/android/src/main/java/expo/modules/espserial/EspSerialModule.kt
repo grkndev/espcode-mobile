@@ -197,6 +197,7 @@ class EspSerialModule : Module() {
       val port = currentPort ?: throw IllegalStateException("No open serial connection")
       runCatching { port.setDTR(dtr) }
       runCatching { port.setRTS(rts) }
+      Unit
     }
   }
 

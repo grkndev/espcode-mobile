@@ -12,12 +12,20 @@ export default function EsptoolDebugScreen() {
   const [busy, setBusy] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const scrollRef = useRef<ScrollView>(null);
+  const busyRef = useRef(false);
 
   const appendLog = (line: string) => {
     setLog((prev) => [...prev, `${new Date().toLocaleTimeString("en-GB", { hour12: false })} ${line}`]);
   };
 
   const runMain = async () => {
+    // A React-state-only guard can race on a fast double-tap (disabled=busy
+    // only takes effect after the next render); this ref check is
+    // synchronous, so a second tap before that render is a hard no-op. Two
+    // concurrent main() calls would share the same Transport and collide on
+    // its single ReadableStream ("already locked for exclusive reading").
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       appendLog("Constructing ESPLoader...");
@@ -28,6 +36,7 @@ export default function EsptoolDebugScreen() {
     } catch (e) {
       appendLog(`main() FAILED: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
