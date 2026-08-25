@@ -10,13 +10,19 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import * as SystemUI from "expo-system-ui";
 import { useEffect } from "react";
-import { useColorScheme } from "react-native";
+import { LogBox, useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { AnimatedSplashOverlay } from "@/components/animated-icon";
 import { Colors } from "@/constants/theme";
 
 SplashScreen.preventAutoHideAsync();
+
+// The editor's DOM-hosted CodeMirror can receive an imperative call before
+// Android has finished attaching its native WebView; the caller retries
+// across a spread of delays to recover, but the failed early attempts still
+// log this specific, expected, harmless rejection — suppress its red screen.
+LogBox.ignoreLogs(["DomWebView.injectJavaScript' has been rejected"]);
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();

@@ -3,9 +3,10 @@ import SafeAreaView from "@/components/SafeAreaView";
 import { ShaderBackground } from "@/components/shader-background";
 import Text from "@/components/Text";
 import { Colors } from "@/constants/theme";
+import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { Link } from "expo-router";
 import { FlatList, TouchableOpacity, View } from "react-native";
-
 export default function HomeScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background p-4 gap-8">
@@ -35,13 +36,22 @@ export default function HomeScreen() {
         <Text weight="bold" className="text-primary text-3xl">
           My Projects
         </Text>
-        <TouchableOpacity className="bg-[#151A26] flex-row items-center gap-2 rounded-full p-4 border border-[#2A3239]">
-          <Icons name="IconSearch" color={"#71717a"} size={18} />
-          <Text className="text-zinc-500">Search projects...</Text>
-        </TouchableOpacity>
+        <Link href={"/(protected)/(screens)/search"} asChild>
+          <TouchableOpacity
+            onPress={() =>
+              Haptics.performAndroidHapticsAsync(
+                Haptics.AndroidHaptics.Keyboard_Tap,
+              )
+            }
+            className="bg-[#151A26] flex-row items-center gap-2 rounded-full p-4 border border-[#2A3239]"
+          >
+            <Icons name="IconSearch" color={"#71717a"} size={18} />
+            <Text className="text-zinc-500">Search projects...</Text>
+          </TouchableOpacity>
+        </Link>
         <FlatList
           data={[1, 1, 1]}
-          renderItem={() => <ProjectCard />}
+          renderItem={() => <ProjectCard projectId="prj-001" />}
           contentContainerClassName="gap-2"
           ListFooterComponent={
             <TouchableOpacity className="border border-zinc-800 border-dashed rounded-xl p-4 justify-center items-center flex-row gap-2">
@@ -58,40 +68,42 @@ export default function HomeScreen() {
   );
 }
 
-function ProjectCard() {
+function ProjectCard({ projectId }: { projectId: string }) {
   return (
-    <TouchableOpacity className="bg-[#12181D] border border-[#2A3239] p-4 rounded-xl gap-2">
-      <View className="flex flex-row items-center justify-between">
-        <Text className="text-zinc-600 text-sm">PRJ-001</Text>
-        <View className="flex flex-row items-center justify-center gap-1">
-          <Icons name="IconGitBranch" size={14} color={"#52525b"} />
-          <Text className="text-zinc-600 text-sm">main</Text>
+    <Link href={{ pathname: "/(protected)/(screens)/editor", params: { project: projectId } }} asChild>
+      <TouchableOpacity className="bg-[#12181D] border border-[#2A3239] p-4 rounded-xl gap-2">
+        <View className="flex flex-row items-center justify-between">
+          <Text className="text-zinc-600 text-sm">PRJ-001</Text>
+          <View className="flex flex-row items-center justify-center gap-1">
+            <Icons name="IconGitBranch" size={14} color={"#52525b"} />
+            <Text className="text-zinc-600 text-sm">main</Text>
+          </View>
         </View>
-      </View>
-      <View className="flex flex-row items-center justify-between">
-        <Text className="text-primary text-2xl" weight="bold">
-          test
-        </Text>
-        <View className="border border-purple-600 py-1 px-2 rounded-xl">
-          <Text className="text-purple-600 text-xs" weight="semibold">
-            ESP32-S3
+        <View className="flex flex-row items-center justify-between">
+          <Text className="text-primary text-2xl" weight="bold">
+            test
           </Text>
+          <View className="border border-purple-600 py-1 px-2 rounded-xl">
+            <Text className="text-purple-600 text-xs" weight="semibold">
+              ESP32-S3
+            </Text>
+          </View>
         </View>
-      </View>
-      <View className="h-px bg-zinc-800" />
-      <View className="flex flex-row items-center justify-between">
-        <View className="flex flex-row gap-2 ">
-          <Text className="text-zinc-600 text-sm">12 versions</Text>
-          <Text className="text-zinc-600 text-sm">·</Text>
-          <Text className="text-zinc-600 text-sm">4h ago</Text>
+        <View className="h-px bg-zinc-800" />
+        <View className="flex flex-row items-center justify-between">
+          <View className="flex flex-row gap-2 ">
+            <Text className="text-zinc-600 text-sm">12 versions</Text>
+            <Text className="text-zinc-600 text-sm">·</Text>
+            <Text className="text-zinc-600 text-sm">4h ago</Text>
+          </View>
+          <View className="flex flex-row items-center">
+            <Text className="text-purple-600 text-sm" weight="bold">
+              Open
+            </Text>
+            <Icons name="IconChevronRight" color={"#9333ea"} size={16} />
+          </View>
         </View>
-        <View className="flex flex-row items-center">
-          <Text className="text-purple-600 text-sm" weight="bold">
-            Open
-          </Text>
-          <Icons name="IconChevronRight" color={"#9333ea"} size={16} />
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Link>
   );
 }

@@ -1,4 +1,4 @@
-import Icons from "@/components/Icons";
+import Icons, { type IconName } from "@/components/Icons";
 import Text from "@/components/Text";
 import {
   BottomSheetBackdrop,
@@ -7,9 +7,9 @@ import {
   BottomSheetView,
 } from "@gorhom/bottom-sheet";
 import { forwardRef, useCallback } from "react";
-import { Pressable } from "react-native";
+import { Pressable, View } from "react-native";
 
-export type SelectOption = { value: string; label: string };
+export type SelectOption = { value: string; label: string; icon?: IconName };
 
 type Props = {
   title: string;
@@ -41,24 +41,31 @@ const SelectBottomSheet = forwardRef<BottomSheetModal, Props>(function SelectBot
         <Text weight="bold" className="px-4 pb-3 text-primary">
           {title}
         </Text>
-        {options.map((option) => {
-          const selected = option.value === value;
-          return (
-            <Pressable
-              key={option.value}
-              onPress={() => onSelect(option.value)}
-              className={`flex-row items-center justify-between px-4 py-3.5 ${selected ? "bg-purple-700/15" : ""}`}
-            >
-              <Text
-                weight={selected ? "semibold" : "regular"}
-                className={selected ? "text-purple-400" : "text-primary"}
+        <View className="gap-2 px-4">
+          {options.map((option) => {
+            const selected = option.value === value;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => onSelect(option.value)}
+                className={`flex-row items-center gap-3 rounded-xl px-4 py-4 ${
+                  selected ? "bg-purple-700/20 active:bg-purple-700/30" : "bg-element active:bg-selected"
+                }`}
               >
-                {option.label}
-              </Text>
-              {selected && <Icons name="IconCheck" color="#a855f7" size={18} />}
-            </Pressable>
-          );
-        })}
+                {option.icon && (
+                  <Icons name={option.icon} color={selected ? "#a855f7" : "#B0B4BA"} size={20} />
+                )}
+                <Text
+                  weight={selected ? "semibold" : "regular"}
+                  className={`flex-1 ${selected ? "text-purple-400" : "text-primary"}`}
+                >
+                  {option.label}
+                </Text>
+                {selected && <Icons name="IconCheck" color="#a855f7" size={18} />}
+              </Pressable>
+            );
+          })}
+        </View>
       </BottomSheetView>
     </BottomSheetModal>
   );
