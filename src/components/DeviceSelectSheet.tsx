@@ -38,7 +38,6 @@ const DeviceSelectSheet = forwardRef<BottomSheetModal, Props>(function DeviceSel
 ) {
   const { devices, scanDevices, selectAndConnect } = useDeviceConnection();
   const [scanning, setScanning] = useState(false);
-  const [connectingId, setConnectingId] = useState<number | null>(null);
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -56,15 +55,17 @@ const DeviceSelectSheet = forwardRef<BottomSheetModal, Props>(function DeviceSel
     }
   }, [scanDevices]);
 
+  // Dismiss before connecting, not after: selectAndConnect() awaits Android's
+  // native USB permission dialog, which backgrounds the app mid-flow. Closing
+  // the sheet only once that resolves means its close animation starts (and
+  // can get stuck) across that background/foreground cycle, leaving
+  // @gorhom/bottom-sheet's internal index desynced so a later `.present()`
+  // silently no-ops. Closing first keeps the sheet's own lifecycle clear of
+  // the OS dialog entirely.
   const selectDevice = useCallback(
-    async (device: UsbDeviceInfo) => {
-      setConnectingId(device.id);
-      try {
-        await selectAndConnect(device.id, baudRate);
-      } finally {
-        setConnectingId(null);
-        onDismiss();
-      }
+    (device: UsbDeviceInfo) => {
+      onDismiss();
+      selectAndConnect(device.id, baudRate).catch(() => {});
     },
     [selectAndConnect, baudRate, onDismiss],
   );
@@ -116,7 +117,6 @@ const DeviceSelectSheet = forwardRef<BottomSheetModal, Props>(function DeviceSel
             <Pressable
               key={device.id}
               onPress={() => selectDevice(device)}
-              disabled={connectingId !== null}
               className="flex-row items-center gap-3 rounded-xl bg-element px-4 py-4 active:bg-selected"
             >
               <Icons name="IconUsb" color="#B0B4BA" size={20} />
@@ -128,7 +128,6 @@ const DeviceSelectSheet = forwardRef<BottomSheetModal, Props>(function DeviceSel
                   {hex(device.vendorId)}:{hex(device.productId)}
                 </Text>
               </View>
-              {connectingId === device.id && <ActivityIndicator size="small" color="#a855f7" />}
             </Pressable>
           ))}
         </View>
