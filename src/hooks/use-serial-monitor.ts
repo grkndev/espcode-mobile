@@ -1,5 +1,6 @@
 import { useDeviceConnection } from "@/hooks/use-device-connection";
 import type { LogLevel, LogLine } from "@/hooks/use-run-session";
+import { useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type LineEnding = "LF" | "CR" | "CRLF" | "None";
@@ -35,10 +36,21 @@ export function useSerialMonitor() {
     setLogs((prev) => [...prev, { id: `${prev.length}-${level}`, time: timestamp(), level, text }]);
   }, []);
 
-  useEffect(() => {
-    setMode("monitor");
-    return () => setMode("idle");
-  }, [setMode]);
+  // useFocusEffect, not a plain mount effect: the Monitor tab stays mounted
+  // in the background once first visited (tab navigators don't unmount
+  // inactive tabs), so a plain `useEffect` only claims "monitor" mode once,
+  // the very first time this screen mounts. Any esptool-js operation run
+  // afterward (from a different screen) flips the shared `mode` to
+  // "esptool" and nothing would ever claim it back - Monitor would show
+  // "Connected" but silently drop every incoming byte forever (see the
+  // guard below). useFocusEffect re-claims "monitor" every time this tab
+  // actually becomes the active one again.
+  useFocusEffect(
+    useCallback(() => {
+      setMode("monitor");
+      return () => setMode("idle");
+    }, [setMode]),
+  );
 
   // A second consumer (esptool) can share this same raw byte stream while
   // Monitor stays mounted in the background (tab navigators don't unmount
