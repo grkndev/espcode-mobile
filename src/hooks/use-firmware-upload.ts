@@ -23,13 +23,15 @@ export function useFirmwareUpload() {
 
   const pickFile = useCallback(async () => {
     setError(null);
-    const result = await File.pickFileAsync({ mimeTypes: "application/octet-stream" });
+    // No MIME-type filter or filename check: .bin has no registered MIME
+    // type, so Android's content providers report picked files under it
+    // inconsistently (this previously rejected a real .bin the user picked,
+    // because the name/type SAF handed back didn't match what was
+    // expected). Trust the user's selection - a bad pick fails naturally at
+    // the write/verify step instead.
+    const result = await File.pickFileAsync();
     if (result.canceled) return;
     const picked = result.result;
-    if (!picked.name.toLowerCase().endsWith(".bin")) {
-      setError("Please select a .bin file");
-      return;
-    }
     const bytes = new Uint8Array(await picked.arrayBuffer());
     setFile({ name: picked.name, bytes });
   }, []);
