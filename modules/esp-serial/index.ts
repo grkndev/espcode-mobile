@@ -60,6 +60,11 @@ export function usbJtagSerialReset(): Promise<void> {
   return getNative().usbJtagSerialReset();
 }
 
+/** Runs esptool's post-operation hard-reset pulse natively in one call - see EspSerialModule.kt for why. */
+export function hardReset(usingUsbOtg: boolean): Promise<void> {
+  return getNative().hardReset(usingUsbOtg);
+}
+
 export function addListener<K extends keyof EspSerialModuleEvents>(
   eventName: K,
   listener: EspSerialModuleEvents[K],

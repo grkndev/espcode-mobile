@@ -237,6 +237,23 @@ class EspSerialModule : Module() {
       runCatching { port.setDTR(false) }
       Unit
     }
+
+    // esptool-js's after("hard_reset") is a no-op unless the caller
+    // supplies its own hardReset reset-constructor (it has no built-in
+    // default, unlike classic/usbJtagSerialReset) - this is that
+    // implementation, run natively for the same reason as the two above.
+    AsyncFunction("hardReset") { usingUsbOtg: Boolean ->
+      val port = currentPort ?: throw IllegalStateException("No open serial connection")
+      if (usingUsbOtg) {
+        Thread.sleep(200)
+        runCatching { port.setRTS(false) }
+        Thread.sleep(200)
+      } else {
+        Thread.sleep(100)
+        runCatching { port.setRTS(false) }
+      }
+      Unit
+    }
   }
 
   private fun closeCurrentConnection() {
