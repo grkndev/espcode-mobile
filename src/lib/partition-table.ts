@@ -26,7 +26,12 @@ export function parsePartitionTable(bytes: Uint8Array): PartitionEntry[] {
   const entries: PartitionEntry[] = [];
 
   for (let offset = 0; offset + ENTRY_SIZE <= bytes.length; offset += ENTRY_SIZE) {
-    if (view.getUint16(offset, true) !== PARTITION_MAGIC) break;
+    // Big-endian: ESP-IDF's gen_esp32part.py treats the magic as a raw
+    // 2-byte string b'\xaa\x50' (not a packed little-endian number like the
+    // offset/size fields below), so byte[offset] is 0xAA and byte[offset+1]
+    // is 0x50 - reading little-endian here would look for 0x50AA instead
+    // and never match.
+    if (view.getUint16(offset, false) !== PARTITION_MAGIC) break;
 
     const type = bytes[offset + 2];
     const partOffset = view.getUint32(offset + 4, true);

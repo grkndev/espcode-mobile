@@ -66,9 +66,9 @@ function ChipInfoBody() {
           <View className="rounded-xl border border-[#2A3239] bg-[#12181D] p-4">
             {rows.map((row, i) => (
               <View key={row.label}>
-                <View className="flex-row items-center justify-between py-2.5">
+                <View className="flex-row items-start justify-between gap-3 py-2.5">
                   <Text className="text-secondary">{row.label}</Text>
-                  <Text weight="semibold" className="text-primary">
+                  <Text weight="semibold" className="flex-1 text-right text-primary">
                     {row.value}
                   </Text>
                 </View>
