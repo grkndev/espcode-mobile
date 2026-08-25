@@ -2,6 +2,7 @@ import SafeAreaView from "@/components/SafeAreaView";
 import Text from "@/components/Text";
 import { useDeviceConnection } from "@/hooks/use-device-connection";
 import { useEspTransport } from "@/hooks/use-esp-transport";
+import { nativeResetConstructors } from "@/lib/esp-reset-strategies";
 import { ESPLoader } from "esptool-js";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
@@ -29,7 +30,12 @@ export default function EsptoolDebugScreen() {
     setBusy(true);
     try {
       appendLog("Constructing ESPLoader...");
-      const loader = new ESPLoader({ transport, baudrate: 115200, debugLogging: true });
+      const loader = new ESPLoader({
+        transport,
+        baudrate: 115200,
+        debugLogging: true,
+        resetConstructors: nativeResetConstructors,
+      });
       appendLog("Calling main() (connect + sync + chip detect)...");
       const chipName = await loader.main();
       appendLog(`main() OK: ${chipName}`);

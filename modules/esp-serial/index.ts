@@ -50,6 +50,16 @@ export function setControlLines(dtr: boolean, rts: boolean): Promise<void> {
   return getNative().setControlLines(dtr, rts);
 }
 
+/** Runs esptool's classic DTR/RTS reset pulse natively in one call - see EspSerialModule.kt for why. */
+export function classicReset(resetDelayMs: number): Promise<void> {
+  return getNative().classicReset(resetDelayMs);
+}
+
+/** Runs esptool's USB-JTAG-Serial reset pulse natively in one call - see EspSerialModule.kt for why. */
+export function usbJtagSerialReset(): Promise<void> {
+  return getNative().usbJtagSerialReset();
+}
+
 export function addListener<K extends keyof EspSerialModuleEvents>(
   eventName: K,
   listener: EspSerialModuleEvents[K],

@@ -10,6 +10,8 @@ declare class EspSerialModule extends NativeModule<EspSerialModuleEvents> {
   write(bytes: Uint8Array): Promise<void>;
   setBaudRate(rate: number): Promise<void>;
   setControlLines(dtr: boolean, rts: boolean): Promise<void>;
+  classicReset(resetDelayMs: number): Promise<void>;
+  usbJtagSerialReset(): Promise<void>;
 }
 
 export default requireNativeModule<EspSerialModule>("EspSerial");

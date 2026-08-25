@@ -199,6 +199,44 @@ class EspSerialModule : Module() {
       runCatching { port.setRTS(rts) }
       Unit
     }
+
+    // esptool's board-reset sequences (classic DTR/RTS toggling, and the
+    // USB-JTAG-Serial variant) are timing-sensitive: the chip samples its
+    // GPIO0/EN strapping pins across a short pulse. Driving each toggle as
+    // its own JS-to-native AsyncFunction call (as esptool-js's default
+    // Transport-based ClassicReset/UsbJtagSerialReset do) adds unpredictable
+    // bridge round-trip jitter between steps that a real browser's Web
+    // Serial API doesn't have, which can be enough to miss the sample
+    // window. Running the whole sequence here, in one call, keeps the
+    // relative timing precise regardless of bridge overhead.
+    AsyncFunction("classicReset") { resetDelayMs: Int ->
+      val port = currentPort ?: throw IllegalStateException("No open serial connection")
+      runCatching { port.setDTR(false) }
+      runCatching { port.setRTS(true) }
+      Thread.sleep(100)
+      runCatching { port.setDTR(true) }
+      runCatching { port.setRTS(false) }
+      Thread.sleep(resetDelayMs.toLong())
+      runCatching { port.setDTR(false) }
+      Unit
+    }
+
+    AsyncFunction("usbJtagSerialReset") {
+      val port = currentPort ?: throw IllegalStateException("No open serial connection")
+      runCatching { port.setRTS(false) }
+      runCatching { port.setDTR(false) }
+      Thread.sleep(100)
+      runCatching { port.setDTR(true) }
+      runCatching { port.setRTS(false) }
+      Thread.sleep(100)
+      runCatching { port.setRTS(true) }
+      runCatching { port.setDTR(false) }
+      runCatching { port.setRTS(true) }
+      Thread.sleep(100)
+      runCatching { port.setRTS(false) }
+      runCatching { port.setDTR(false) }
+      Unit
+    }
   }
 
   private fun closeCurrentConnection() {
