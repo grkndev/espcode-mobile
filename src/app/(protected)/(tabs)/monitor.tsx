@@ -8,8 +8,16 @@ import { useDeviceConnection } from "@/hooks/use-device-connection";
 import type { LogLevel, LogLine } from "@/hooks/use-run-session";
 import { useSerialMonitor, type LineEnding } from "@/hooks/use-serial-monitor";
 import type { BottomSheetModal } from "@gorhom/bottom-sheet";
+import * as Haptics from "expo-haptics";
 import { useRef, useState } from "react";
-import { ActivityIndicator, FlatList, Pressable, TextInput, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Svg, { Line, Path } from "react-native-svg";
 
 type Tab = "monitor" | "plotter";
@@ -24,11 +32,21 @@ const LEVEL_COLOR: Record<LogLevel, string> = {
 const LINE_ENDINGS: LineEnding[] = ["LF", "CR", "CRLF", "None"];
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 74880, 115200, 230400];
-const BAUD_OPTIONS = BAUD_RATES.map((rate) => ({ value: String(rate), label: String(rate) }));
+const BAUD_OPTIONS = BAUD_RATES.map((rate) => ({
+  value: String(rate),
+  label: String(rate),
+}));
 
 export default function MonitorScreen() {
   const [tab, setTab] = useState<Tab>("monitor");
-  const { connectionState, connectionError, baudRate, setBaudRate, disconnect } = useDeviceConnection();
+  const {
+    connectionState,
+    connectionError,
+    baudRate,
+    setBaudRate,
+    disconnect,
+    scanDevices,
+  } = useDeviceConnection();
   const { logs, send, clearLogs } = useSerialMonitor();
   const [lineEndingIndex, setLineEndingIndex] = useState(0);
   const [command, setCommand] = useState("");
@@ -39,11 +57,20 @@ export default function MonitorScreen() {
   const connected = connectionState === "connected";
   const connecting = connectionState === "connecting";
 
-  const handleStartPress = () => {
+  // Scan before presenting, not on the sheet's own mount: with
+  // enableDynamicSizing, the sheet measures its content height right as it
+  // mounts. Populating the device list mid-measurement (previously done via
+  // onChange inside the sheet) changes that height while the mount animation
+  // is still settling, which can wedge @gorhom/bottom-sheet so later
+  // .present() calls silently no-op. Scanning first means the sheet mounts
+  // with a stable, already-known device list.
+  const handleStartPress = async () => {
+    Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Confirm);
     if (connected) {
       disconnect();
       return;
     }
+    await scanDevices().catch(() => {});
     deviceSheetRef.current?.present();
   };
 
@@ -79,16 +106,19 @@ export default function MonitorScreen() {
               </Text>
               <Icons name="IconChevronDown" color="#B0B4BA" size={16} />
             </Pressable>
-            <Pressable
+            <TouchableOpacity
               onPress={handleStartPress}
               disabled={connecting}
               className={`flex-row items-center gap-2 rounded-xl px-5 py-2 ${connecting ? "bg-element" : "bg-purple-700"}`}
             >
               {connecting && <ActivityIndicator size="small" color="#B0B4BA" />}
-              <Text weight="bold" className={connecting ? "text-zinc-500" : "text-white"}>
+              <Text
+                weight="bold"
+                className={connecting ? "text-zinc-500" : "text-white"}
+              >
                 {connecting ? "Connecting..." : connected ? "Pause" : "Start"}
               </Text>
-            </Pressable>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -149,7 +179,11 @@ export default function MonitorScreen() {
               <ConsoleView logs={logs} listRef={listRef} />
             ) : (
               <EmptyState
-                icon={connectionError ? "IconAlertTriangleFilled" : "IconPlugConnectedX"}
+                icon={
+                  connectionError
+                    ? "IconAlertTriangleFilled"
+                    : "IconPlugConnectedX"
+                }
                 title={connectionError ?? "Not Connected yet"}
                 subtitle={
                   connectionError

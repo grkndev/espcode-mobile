@@ -78,9 +78,6 @@ const DeviceSelectSheet = forwardRef<BottomSheetModal, Props>(function DeviceSel
       backgroundStyle={{ backgroundColor: "#12181D" }}
       handleIndicatorStyle={{ backgroundColor: "#3f3f46" }}
       onDismiss={onDismiss}
-      onChange={(index) => {
-        if (index >= 0) rescan();
-      }}
     >
       <BottomSheetView style={{ paddingTop: 4, paddingBottom: 24 }}>
         <View className="flex-row items-center justify-between px-4 pb-3">
