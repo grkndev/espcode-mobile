@@ -12,7 +12,7 @@ export type DeviceConnectionContextValue = {
   baudRate: number;
   mode: ConnectionMode;
   /** Scans, auto-selects the first USB-serial device found, requests permission, and opens it. */
-  connect: (baudRate: number) => Promise<void>;
+  connect: (baudRate: number) => Promise<UsbDeviceInfo>;
   disconnect: () => void;
   setBaudRate: (rate: number) => void;
   setControlLines: (dtr: boolean, rts: boolean) => Promise<void>;
@@ -56,30 +56,35 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
   // matters for a multi-device/hub setup, which isn't this app's real usage
   // today - revisit with a non-modal picker (e.g. its own screen) if that
   // ever changes, rather than a BottomSheetModal in this hot connect path.
-  const connect = useCallback(async (baud: number) => {
+  // Returns the connected device directly rather than relying on callers to
+  // read it back from `selectedDevice`: that's React state set via
+  // setSelectedDevice() below, which doesn't apply synchronously. A caller
+  // that needs the device immediately after connect() resolves (e.g.
+  // esptool-js's chip-detection reset logic, which calls transport.getPid()
+  // right after transport.connect() returns) could otherwise see a stale
+  // value from before this render commits.
+  const connect = useCallback(async (baud: number): Promise<UsbDeviceInfo> => {
     setConnectionState("connecting");
     setConnectionError(null);
     try {
       const found = await EspSerial.listDevices();
       const target = found[0];
       if (!target) {
-        setConnectionState("error");
-        setConnectionError("No device found");
-        return;
+        throw new Error("No device found");
       }
       const granted = await EspSerial.requestPermission(target.id);
       if (!granted) {
-        setConnectionState("error");
-        setConnectionError("Permission denied");
-        return;
+        throw new Error("Permission denied");
       }
       await EspSerial.open(target.id, baud);
       setSelectedDevice(target);
       setBaudRateState(baud);
       setConnectionState("connected");
+      return target;
     } catch (e) {
       setConnectionState("error");
       setConnectionError(e instanceof Error ? e.message : String(e));
+      throw e;
     }
   }, []);
 

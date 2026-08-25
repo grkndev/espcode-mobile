@@ -5,7 +5,7 @@ import { ReadableStream, WritableStream } from "web-streams-polyfill";
 export type EspSerialPortDeps = {
   connectionState: ConnectionState;
   selectedDevice: UsbDeviceInfo | null;
-  connect: (baudRate: number) => Promise<void>;
+  connect: (baudRate: number) => Promise<UsbDeviceInfo>;
   setBaudRate: (rate: number) => void;
   setControlLines: (dtr: boolean, rts: boolean) => Promise<void>;
   setMode: (mode: ConnectionMode) => void;
@@ -27,6 +27,12 @@ export class EspSerialPort {
   readonly readable: ReadableStream<Uint8Array>;
   readonly writable: WritableStream<Uint8Array>;
   private unsubscribeRaw: (() => void) | null = null;
+  // Own field, not React state: esptool-js reads getInfo() (for its PID-based
+  // reset-strategy auto-detection) immediately after open() resolves, before
+  // the setSelectedDevice() call inside connect() has necessarily propagated
+  // through a React re-render. This is set synchronously the moment we know
+  // the device, sidestepping that timing gap entirely.
+  private connectedDevice: UsbDeviceInfo | null = null;
 
   // Takes a getter rather than a fixed deps object: this instance is
   // created once and lives for the whole esptool-js operation, but
@@ -55,9 +61,10 @@ export class EspSerialPort {
     const baud = baudRate ?? 115200;
     deps.setMode("esptool");
     if (deps.connectionState !== "connected") {
-      await deps.connect(baud);
+      this.connectedDevice = await deps.connect(baud);
     } else {
       deps.setBaudRate(baud);
+      this.connectedDevice = deps.selectedDevice;
     }
   }
 
@@ -76,10 +83,10 @@ export class EspSerialPort {
   }
 
   getInfo(): { usbVendorId?: number; usbProductId?: number } {
-    const deps = this.getDeps();
+    const device = this.connectedDevice ?? this.getDeps().selectedDevice;
     return {
-      usbVendorId: deps.selectedDevice?.vendorId,
-      usbProductId: deps.selectedDevice?.productId,
+      usbVendorId: device?.vendorId,
+      usbProductId: device?.productId,
     };
   }
 }

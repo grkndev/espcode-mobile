@@ -61,7 +61,7 @@ export default function MonitorScreen() {
       disconnect();
       return;
     }
-    connect(baudRate);
+    connect(baudRate).catch(() => {});
   };
 
   const handleSend = () => {
