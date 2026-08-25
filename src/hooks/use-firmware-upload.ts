@@ -1,10 +1,33 @@
 import { useDeviceConnection } from "@/hooks/use-device-connection";
 import { useEspTransport } from "@/hooks/use-esp-transport";
 import { nativeResetConstructors } from "@/lib/esp-reset-strategies";
+import { formatSessionDate, saveSession } from "@/lib/flash-log-store";
 import * as Crypto from "expo-crypto";
 import { File } from "expo-file-system";
-import { ESPLoader, type FlashSizeValues } from "esptool-js";
+import { ESPLoader, type FlashSizeValues, type IEspLoaderTerminal } from "esptool-js";
 import { useCallback, useState } from "react";
+
+/** Mirrors a real terminal's write semantics: writeLine ends the current
+ * line, write() (no newline) appends to it - matches how ESPLoader's own
+ * this.info(str, false) calls expect a later write to complete the line. */
+function createSessionTerminal(): { terminal: IEspLoaderTerminal; lines: string[] } {
+  const lines: string[] = [];
+  return {
+    lines,
+    terminal: {
+      clean: () => {
+        lines.length = 0;
+      },
+      writeLine: (data) => {
+        lines.push(data);
+      },
+      write: (data) => {
+        if (lines.length === 0) lines.push(data);
+        else lines[lines.length - 1] += data;
+      },
+    },
+  };
+}
 
 export type UploadStatus = "idle" | "uploading" | "verifying" | "success" | "error";
 
@@ -42,11 +65,15 @@ export function useFirmwareUpload() {
       setStatus("uploading");
       setProgress(0);
       setError(null);
+      const startedAt = Date.now();
+      const fileName = file.name;
+      const { terminal, lines } = createSessionTerminal();
       try {
         const loader = new ESPLoader({
           transport,
           baudrate: 115200,
           resetConstructors: nativeResetConstructors,
+          terminal,
         });
         await loader.main();
 
@@ -79,9 +106,22 @@ export function useFirmwareUpload() {
         await loader.after("hard_reset");
         conn.setMode("idle");
         setStatus("success");
+        recordSession(true);
       } catch (e) {
         setStatus("error");
         setError(e instanceof Error ? e.message : String(e));
+        recordSession(false);
+      }
+
+      function recordSession(success: boolean) {
+        saveSession({
+          id: `${startedAt}`,
+          date: formatSessionDate(startedAt),
+          file: fileName,
+          duration: `${Math.round((Date.now() - startedAt) / 1000)}s`,
+          success,
+          lines,
+        });
       }
     },
     [file, transport, conn],
