@@ -242,8 +242,16 @@ class EspSerialModule : Module() {
     // supplies its own hardReset reset-constructor (it has no built-in
     // default, unlike classic/usbJtagSerialReset) - this is that
     // implementation, run natively for the same reason as the two above.
+    //
+    // esptool-js's own HardReset.reset() only does sleep()+setRTS(false) -
+    // no initial setRTS(true) to actually assert reset first. If RTS was
+    // already false (released) going in, that produces no edge at all, so
+    // nothing resets. The canonical Python esptool (esp_pylib.serial_reset
+    // hard_reset()) always asserts RTS true, holds, then releases - that's
+    // what's implemented here instead.
     AsyncFunction("hardReset") { usingUsbOtg: Boolean ->
       val port = currentPort ?: throw IllegalStateException("No open serial connection")
+      runCatching { port.setRTS(true) }
       if (usingUsbOtg) {
         Thread.sleep(200)
         runCatching { port.setRTS(false) }
