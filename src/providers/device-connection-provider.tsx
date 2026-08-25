@@ -15,8 +15,9 @@ export type DeviceConnectionContextValue = {
   connect: (baudRate: number) => Promise<void>;
   disconnect: () => void;
   setBaudRate: (rate: number) => void;
+  setControlLines: (dtr: boolean, rts: boolean) => Promise<void>;
   setMode: (mode: ConnectionMode) => void;
-  write: (bytes: Uint8Array) => void;
+  write: (bytes: Uint8Array) => Promise<void>;
   subscribeRaw: (onData: (bytes: Uint8Array) => void) => () => void;
 };
 
@@ -105,8 +106,16 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
   const setMode = useCallback((next: ConnectionMode) => setModeState(next), []);
 
   const write = useCallback((bytes: Uint8Array) => {
-    EspSerial.write(bytes).catch((e) => {
+    return EspSerial.write(bytes).catch((e) => {
       setConnectionError(e instanceof Error ? e.message : String(e));
+      throw e;
+    });
+  }, []);
+
+  const setControlLines = useCallback((dtr: boolean, rts: boolean) => {
+    return EspSerial.setControlLines(dtr, rts).catch((e) => {
+      setConnectionError(e instanceof Error ? e.message : String(e));
+      throw e;
     });
   }, []);
 
@@ -127,6 +136,7 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
       connect,
       disconnect,
       setBaudRate,
+      setControlLines,
       setMode,
       write,
       subscribeRaw,
@@ -140,6 +150,7 @@ export function DeviceConnectionProvider({ children }: { children: ReactNode }) 
       connect,
       disconnect,
       setBaudRate,
+      setControlLines,
       setMode,
       write,
       subscribeRaw,

@@ -17,6 +17,7 @@
     "@lezer/highlight": "^1.2.3",
     "@tabler/icons-react-native": "^3.46.0",
     "@uiw/react-codemirror": "^4.25.11",
+    "esptool-js": "0.6.1",
     "expo": "~57.0.16",
     "expo-constants": "~57.0.14",
     "expo-dev-client": "~57.0.15",
@@ -44,10 +45,12 @@
     "react-native-screens": "~4.26.0",
     "react-native-svg": "15.15.4",
     "react-native-web": "~0.21.0",
-    "react-native-worklets": "0.10.1"
+    "react-native-worklets": "0.10.1",
+    "web-streams-polyfill": "4.3.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "@types/w3c-web-serial": "1.0.8",
     "babel-preset-expo": "~57.0.7",
     "prettier-plugin-tailwindcss": "^0.5.11",
     "tailwindcss": "^3.4.17",

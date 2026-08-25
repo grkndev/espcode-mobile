@@ -24,10 +24,12 @@ function timestamp(): string {
 
 /** Interprets the shared raw byte stream as line-buffered monitor logs; independent of tab/screen lifetime. */
 export function useSerialMonitor() {
-  const { connectionState, subscribeRaw, write, setMode } = useDeviceConnection();
+  const { connectionState, mode, subscribeRaw, write, setMode } = useDeviceConnection();
   const [logs, setLogs] = useState<LogLine[]>([]);
   const bufferRef = useRef("");
   const wasConnectedRef = useRef(false);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
 
   const appendLine = useCallback((level: LogLevel, text: string) => {
     setLogs((prev) => [...prev, { id: `${prev.length}-${level}`, time: timestamp(), level, text }]);
@@ -38,8 +40,13 @@ export function useSerialMonitor() {
     return () => setMode("idle");
   }, [setMode]);
 
+  // A second consumer (esptool) can share this same raw byte stream while
+  // Monitor stays mounted in the background (tab navigators don't unmount
+  // inactive tabs) - ignore bytes while some other flow owns the port so
+  // binary protocol data never gets line-buffered as if it were text.
   useEffect(() => {
     return subscribeRaw((bytes) => {
+      if (modeRef.current !== "monitor") return;
       bufferRef.current += new TextDecoder().decode(bytes);
       const lines = bufferRef.current.split("\n");
       bufferRef.current = lines.pop() ?? "";
@@ -70,7 +77,7 @@ export function useSerialMonitor() {
       const payload = new Uint8Array(bodyBytes.length + endingBytes.length);
       payload.set(bodyBytes, 0);
       payload.set(endingBytes, bodyBytes.length);
-      write(payload);
+      write(payload).catch(() => {});
     },
     [appendLine, write],
   );
